@@ -1,0 +1,292 @@
+\documentclass{beamer}
+\usepackage{lmodern}
+\usepackage{listings}
+\usepackage{amsmath}
+\usepackage{bm}
+\usepackage{textpos} % package for the positioning
+
+\usetheme{Copenhagen}
+\hypersetup{pdfstartview={Fit}}
+
+\title{Automatic Differentiation}
+\author{Jonathon Hare}
+\institute[]
+{
+  Vision, Learning and Control\\
+  University of Southampton 
+}
+\date{}
+\subject{Computer Science}
+\useoutertheme{infolines}
+\setbeamertemplate{headline}{} %remove headline
+\setbeamertemplate{navigation symbols}{} %remove navigation symbols
+
+\begin{document}
+  \frame{
+  \titlepage
+
+\tiny{Much of this material is based on this blog post:
+\url{https://rufflewind.com/2016-12-30/reverse-mode-automatic-differentiation}}
+  }
+
+\begin{frame}
+\frametitle{What is Automatic Differentiation (AD)?}
+To solve optimisation problems using gradient methods we need to compute the gradients (derivatives) of the objective with respect to the parameters.
+\begin{itemize}
+	\item In neural nets we're talking about the gradients of the loss function, $\mathcal{L}$ with respect to the parameters $\bm{\theta}$: 
+	$\nabla_{\bm{\theta}} \mathcal{L} = \frac{\partial \mathcal{L}}{\partial \bm{\theta}}$
+\end{itemize}
+\end{frame}
+
+\begin{frame}
+	\frametitle{What is Automatic Differentiation (AD)?}
+	\framesubtitle{Computing Derivatives}
+There are three ways to compute derivatives:
+
+\begin{columns}
+	\column{.45\textwidth}
+    \setbeamercovered{transparent}
+    \begin{itemize}
+    	\item<1,2> Symbolically differentiate the function with respect to its parameters
+    	\begin{itemize}
+    		\item by hand
+    		\item using a CAS
+    	\end{itemize}
+    	\item<1,3> Make estimates using finite differences
+    	\item<1,4> Use Automatic Differentiation
+    \end{itemize}
+
+    \column{.45\textwidth}
+      \begin{block}{Problems}<2>
+        Static - can't "differentiate algorithms"
+      \end{block}
+      \begin{block}{Problems}<3>
+        Numerical errors - will compound in deep nets
+      \end{block}
+  \end{columns}
+\end{frame}
+
+\begin{frame}
+	\frametitle{What is Automatic Differentiation (AD)?}
+
+	Automatic Differentiation is:
+	\begin{itemize}
+		\item a method to get exact derivatives efficiently, by storing information as you go forward that you can reuse as you go backwards.
+		\begin{itemize}
+			\item Takes code that computes a function and uses that to compute the derivative of that function.
+		\item The goal isn't to obtain closed-form solutions, but to be able to write a program that efficiently computes the derivatives.
+		\end{itemize}
+	\end{itemize}
+\end{frame}
+
+\begin{frame}[fragile]
+\frametitle{Lets think about differentiation and programming}
+\begin{columns}
+	\column{.45\textwidth}
+    \begin{example}<1->[Math] 
+    \vspace{-1.5em}
+    \begin{align*}
+			x & = ? \\
+			y & = ? \\
+			a & = x \, y \\
+			b & = \sin(x) \\
+			z & = a + b
+		\end{align*}
+    \end{example}
+
+	\column{.45\textwidth}
+	\begin{example}<2->[Code]
+			\begin{lstlisting}
+x = ?
+y = ?
+a = x * y
+b = sin(x)
+z = a + b
+			\end{lstlisting}
+	\end{example}
+	\end{columns}
+\end{frame}
+
+\begin{frame}
+\frametitle{The Chain Rule of Differentiation}
+
+\uncover<1->{
+Recall the chain rule for a variable/function $z$ that depends on $y$ which depends on $x$:
+\begin{equation*}
+\frac{dz}{dx} = \frac{dz}{dy}\frac{dy}{dx}
+\end{equation*}
+}
+
+\uncover<2->{
+In general, the chain rule can be expressed as:
+\begin{equation*}
+	\frac{\partial w}{\partial t} = \sum_i^N \frac{\partial w}{\partial u_i} \frac{\partial u_i}{\partial t} = \frac{\partial w}{\partial u_1}\frac{\partial u_1}{\partial t} + \frac{\partial w}{\partial u_2}\frac{\partial u_2}{\partial t} + \dots + \frac{\partial w}{\partial u_N}\frac{\partial u_N}{\partial t}
+\end{equation*}
+where $w$ is some output variable, and $u_i$ denotes each input variable $w$ depends on.
+}
+\end{frame}
+
+\begin{frame}
+\frametitle{Applying the Chain Rule}
+Let's differentiate our previous expression with respect to some yet to be given variable $t$:
+\begin{align*}
+	\frac{\partial x}{\partial t} & = ? \\
+	\frac{\partial y}{\partial t} & = ? \\
+	\frac{\partial a}{\partial t} & = x \frac{\partial y}{\partial t} + y \frac{\partial x}{\partial t}\\
+	\frac{\partial b}{\partial t} & = \cos(x) \frac{\partial x}{\partial t}\\
+	\frac{\partial z}{\partial t} & = \frac{\partial a}{\partial t} + \frac{\partial b}{\partial t}
+\end{align*}
+
+
+\uncover<2->{If we substitute $t=x$ in the above we'll have an algorithm for computing $\partial x/\partial x$. To get $\partial z/\partial y$ we'd just substitute $t=y$.
+}
+\end{frame}
+
+\begin{frame}[fragile]
+\frametitle{Translating to code I}
+We could translate the previous expressions back into a program involving \emph{differential variables} \lstinline!{dx, dy, ...}! which represent $\partial x/\partial t, \partial y/\partial t, \dots$ respectively:
+
+\begin{lstlisting}
+dx = ?
+dy = ?
+da = y * dx + x * dy
+db = cos(x) * dx
+dz = da + db	
+\end{lstlisting}
+
+\uncover<2->{What happens to this program if we substitute $t=x$ into the math expression?}
+\end{frame}
+
+\begin{frame}[fragile]
+\frametitle{Translating to code II}
+
+\begin{columns}
+\column{.45\textwidth}
+\begin{lstlisting}
+dx = 1
+dy = 0
+da = y * dx + x * dy
+db = cos(x) * dx
+dz = da + db	
+\end{lstlisting}
+
+\column{.45\textwidth}
+
+\uncover<2->{The effect is remarkably simple: to compute $\partial z/\partial x$ we just seed the algorithm with \lstinline!dx=1! and \lstinline!dy=0!.}
+\end{columns}
+\end{frame}
+
+
+\begin{frame}[fragile]
+\frametitle{Translating to code III}
+
+\begin{columns}
+\column{.45\textwidth}
+\begin{lstlisting}
+dx = 0
+dy = 1
+da = y * dx + x * dy
+db = cos(x) * dx
+dz = da + db	
+\end{lstlisting}
+
+\column{.45\textwidth}
+
+To compute $\partial z/\partial y$ we just seed the algorithm with \lstinline!dx=0! and \lstinline!dy=1!.
+\end{columns}
+\end{frame}
+
+\begin{frame}[fragile]
+\frametitle{Making Rules}
+
+\begin{itemize}
+	\item<+-> We've successfully computed the gradients for a specific function, but the process was far from automatic. 
+	\item<+-> We need to formalise a set of rules for translating a program that evaluates an expression into a program that evaluates its derivatives.
+	\item<+-> We have actually already discovered 3 of these rules:
+\begin{lstlisting}
+c = a + b   =>  dc = da + db
+c = a * b   =>  dc = b * da + a * db
+c = sin(a)  =>  dc = cos(a) * da
+\end{lstlisting}
+\end{itemize}
+
+\end{frame}
+
+\begin{frame}[fragile]
+\frametitle{More rules}
+
+These initial rules:
+\begin{lstlisting}
+c=a+b     =>  dc=da+db
+c=a*b     =>  dc=b*da+a*db
+c=sin(a)  =>  dc=cos(a)*da
+\end{lstlisting}
+can easily be extended further using multivariable calculus:
+\begin{lstlisting}
+c=a-b     =>  dc=da-db
+c=a/b     =>  dc=da/b-a*db/b**2
+c=a**b    =>  dc=b*a**(b-1)*da+log(a)*a**b*db
+c=cos(a)  =>  dc=-sin(a)*da
+c=tan(a)  =>  dc=da/cos(a)**2
+\end{lstlisting}
+\end{frame}
+
+\begin{frame}
+\frametitle{Forward Mode AD}
+\begin{itemize}
+	\item<+-> To translate using the rules we simply replace each primitive operation in the original program by its differential analogue.
+	\item<+-> The order of computation remains unchanged: if a statement $K$ is evaluated before another statement $L$, then the differential analogue of $K$ is evaluated before the analogue statement of $L$.
+	\item<+-> This is \textbf{Forward-mode Automatic Differentiation}.
+\end{itemize}
+\end{frame}
+
+\begin{frame}[fragile]
+\frametitle{Interleaving differential computation}
+
+A careful analysis of our original program and its differential analogue shows that its possible to interleave the differential calculations with the original ones:
+\begin{columns}
+	\column{.45\textwidth}
+\small{
+\begin{lstlisting}
+x  = ?
+dx = ?
+
+y  = ?
+dy = ?
+
+a  = x * y
+da = y * dx + x * dy
+
+b  = sin(x)
+db = cos(x) * dx
+
+z  = a + b
+dz = da + db
+\end{lstlisting}
+}
+
+\column{.45\textwidth}
+\begin{block}{Dual Numbers}<2->
+	\begin{itemize}
+		\item<2-> This implies that we can keep track of the value and gradient at the same time.
+		\item<3-> We can use a mathematical concept called a "Dual Number" to create a very simple direct implementation of AD.
+	\end{itemize}
+\end{block}
+
+\end{columns}
+\end{frame}
+
+\begin{frame}
+\frametitle{Forward Mode AD}
+
+Let's try this for ourselves... Open the 
+
+\end{frame}
+
+\begin{frame}
+\frametitle{Backward Mode AD}
+\framesubtitle{A bit more information about this}
+%More content goes here
+\end{frame}
+% etc
+\end{document}
