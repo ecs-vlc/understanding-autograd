@@ -12,6 +12,9 @@ class Var:
                                   for weight, var in self.children)
         return self.grad_value
 
+    def __str__(self):
+        return str(self.value)
+
     def __add__(self, other):
         z = Var(self.value + other.value)
         self.children.append((1.0, z))
