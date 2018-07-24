@@ -133,7 +133,22 @@ where $w$ is some output variable, and $u_i$ denotes each input variable $w$ dep
 
 \begin{frame}
 \frametitle{Applying the Chain Rule}
+
 Let's differentiate our previous expression with respect to some yet to be given variable $t$:
+\begin{columns}
+\column{.3\textwidth}
+\begin{block}<1->{Expression}
+    \vspace{-1.5em}
+    \begin{align*}
+			x & = ? \\
+			y & = ? \\
+			a & = x \, y \\
+			b & = \sin(x) \\
+			z & = a + b
+		\end{align*}
+    \end{block}
+
+\column{.65\textwidth}
 \begin{align*}
 	\frac{\partial x}{\partial t} & = ? \\
 	\frac{\partial y}{\partial t} & = ? \\
@@ -141,10 +156,12 @@ Let's differentiate our previous expression with respect to some yet to be given
 	\frac{\partial b}{\partial t} & = \cos(x) \frac{\partial x}{\partial t}\\
 	\frac{\partial z}{\partial t} & = \frac{\partial a}{\partial t} + \frac{\partial b}{\partial t}
 \end{align*}
-
-
+\end{columns}
+\vfill
+ 
 \uncover<2->{If we substitute $t=x$ in the above we'll have an algorithm for computing $\partial x/\partial x$. To get $\partial z/\partial y$ we'd just substitute $t=y$.
 }
+
 \end{frame}
 
 \begin{frame}[fragile]
@@ -339,7 +356,9 @@ In this form, the chain rule can be applied repeatedly to every input variable $
 		\frac{\partial s}{\partial b} & = \frac{\partial z}{\partial b} \frac{\partial s}{\partial z} = \frac{\partial s}{\partial z} \\
 		\frac{\partial s}{\partial a} & = \frac{\partial z}{\partial a} \frac{\partial s}{\partial z} = \frac{\partial s}{\partial z} \\
 		\frac{\partial s}{\partial y} & = \frac{\partial a}{\partial y} \frac{\partial s}{\partial a} = x \, \frac{\partial s}{\partial a} \\
-		\frac{\partial s}{\partial x} & = \frac{\partial a}{\partial x} \frac{\partial s}{\partial a} + \frac{\partial b}{\partial x} \frac{\partial s}{\partial b} = y \, \frac{\partial s}{\partial a} + \cos(x) \, \frac{\partial s}{\partial b} \\
+		\frac{\partial s}{\partial x} & = \frac{\partial a}{\partial x} \frac{\partial s}{\partial a} + \frac{\partial b}{\partial x} \frac{\partial s}{\partial b} \\
+		& = y \, \frac{\partial s}{\partial a} + \cos(x) \, \frac{\partial s}{\partial b} \\
+		& = (y + \cos(x)) \, \frac{\partial s}{\partial z} \\
 	\end{align*}}
 	\end{columns}
 \end{frame}
@@ -403,7 +422,7 @@ If we go back to the equations and substitute $s=z$ we would obtain the gradient
 \[
    \begin{cases}
      z = 2x + \sin x\\
-     v = 4x + \sin x
+     v = 4x + \cos x
    \end{cases}
 \]
 	\item We can't just interleave the derivative calculations (since they all appear to be in reverse)\ldots How can we make this automatic?

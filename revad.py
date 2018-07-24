@@ -40,3 +40,6 @@ z.grad_value = 1.0
 assert abs(z.value - 2.579425538604203) <= 1e-15
 assert abs(x.grad() - (y.value + math.cos(x.value))) <= 1e-15
 assert abs(y.grad() - x.value) <= 1e-15
+
+print(x.grad())
+print(y.grad())
